@@ -1,0 +1,140 @@
+---
+import Admin from '../../../layouts/Admin.astro';
+import { getSession, paymentLabel, roster, sessionLabel, waiverLabel } from '../../../lib/admin';
+export const prerender = false;
+
+const id = Number(Astro.params.id);
+const session = Number.isInteger(id) ? await getSession(id) : null;
+if (!session) return new Response('Not found', { status: 404 });
+const rows = await roster(id);
+const confirmed = rows.filter((r) => r.status === 'confirmed').length;
+const held = rows.length - confirmed;
+const msg = Astro.url.searchParams.get('msg');
+const err = Astro.url.searchParams.get('err');
+const outOfBand = (age: number | null) =>
+  age !== null && ((session.ageMin !== null && age < session.ageMin) || (session.ageMax !== null && age > session.ageMax));
+---
+
+<Admin title={sessionLabel(session)}>
+  <p><a href="/admin">← All sessions</a></p>
+  <h1>{sessionLabel(session)}</h1>
+  <p>
+    <strong>{confirmed} / {session.capacity}</strong> booked{held > 0 && `, ${held} held while paying`}.
+    <a class="btn btn--ghost btn-small" href={`/admin/export.csv?session=${id}`} download>Export roster (CSV) — sensitive: includes health notes</a>
+  </p>
+  {msg && <p class="flash" role="status">{msg}</p>}
+  {err && <p class="flash err" role="alert">{err}</p>}
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Participant</th>
+          <th scope="col">Age</th>
+          <th scope="col">Booker contact</th>
+          <th scope="col">Waiver</th>
+          <th scope="col">Payment</th>
+          <th scope="col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 && (
+          <tr>
+            <td colspan="6">No bookings yet.</td>
+          </tr>
+        )}
+        {rows.map((r) => (
+          <tr>
+            <td>
+              <strong>{r.fullName}</strong>
+              {r.healthNotes ? <div class="health"><strong>⚑ Health:</strong> {r.healthNotes}</div> : <div class="hint">Health: {r.healthNone ? 'none declared' : 'not recorded'}</div>}
+              {r.status === 'held' && <span class="badge">Held — paying</span>}
+              {r.guardianName && <div class="hint">Guardian: {r.guardianName} ({r.guardianRelationship})</div>}
+              {r.emergencyName && <div class="hint">Emergency: {r.emergencyName}, {r.emergencyPhone}</div>}
+              {r.notes && <div class="hint">Note: {r.notes}</div>}
+            </td>
+            <td>
+              {r.age ?? '—'}
+              {outOfBand(r.age) && <span class="badge warn">Outside age group</span>}
+            </td>
+            <td>
+              {r.bookerName && <div>{r.bookerName}</div>}
+              {r.bookerEmail && <div><a href={`mailto:${r.bookerEmail}`}>{r.bookerEmail}</a></div>}
+              {(r.bookerPhone || r.phone) && <div><a href={`tel:${r.bookerPhone || r.phone}`}>{r.bookerPhone || r.phone}</a></div>}
+            </td>
+            <td>
+              <span class:list={['badge', { ok: r.waiverStatus === 'online', warn: r.waiverStatus === 'missing', due: r.waiverStatus === 'paper' }]}>
+                {waiverLabel(r.waiverStatus)}
+              </span>
+              {r.waiverId && <div><a href={`/admin/waiver/${r.waiverId}`}>PDF</a></div>}
+            </td>
+            <td>
+              <span class:list={['badge', { ok: r.paymentStatus === 'paid_card' || r.paymentStatus === 'cash_received', due: r.paymentStatus === 'cash_due' }]}>
+                {paymentLabel(r.paymentStatus)}
+              </span>
+              {(r.paymentStatus === 'cash_due' || r.paymentStatus === 'cash_received') && (
+                <form method="post" action="/api/admin/booking/cash">
+                  <input type="hidden" name="booking" value={r.bookingId} />
+                  <input type="hidden" name="session" value={id} />
+                  <input type="hidden" name="received" value={r.paymentStatus === 'cash_due' ? '1' : '0'} />
+                  <button class="linkish" type="submit">{r.paymentStatus === 'cash_due' ? 'Mark cash received' : 'Undo: mark cash due'}</button>
+                </form>
+              )}
+            </td>
+            <td>
+              {r.status === 'confirmed' && (
+                <form method="post" action="/api/admin/booking/cancel" onsubmit="return confirm('Cancel this booking and free the spot?')">
+                  <input type="hidden" name="booking" value={r.bookingId} />
+                  <input type="hidden" name="session" value={id} />
+                  <button class="linkish" type="submit">Cancel</button>
+                </form>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <h2 style="margin-top:2rem">Add a booking manually</h2>
+  <p class="muted">For walk-ins or phone bookings. Capacity rules still apply.</p>
+  <form method="post" action="/api/admin/booking/add" class="admin-form">
+    <input type="hidden" name="session" value={id} />
+    <div class="row">
+      <label>Participant full name <input name="fullName" required /></label>
+      <label>Date of birth <input name="dateOfBirth" type="date" /></label>
+    </div>
+    <div class="row">
+      <label>Phone <input name="phone" type="tel" /></label>
+      <label>Email <input name="email" type="email" /></label>
+    </div>
+    <div class="row">
+      <label>Emergency contact <input name="emergencyName" /></label>
+      <label>Emergency contact phone <input name="emergencyPhone" type="tel" /></label>
+    </div>
+    <label>Injuries or medical conditions (leave empty if none recorded) <textarea name="healthNotes" rows="2"></textarea></label>
+    <div class="row">
+      <label>Booker email <input name="bookerEmail" type="email" /></label>
+      <label>Booker phone <input name="bookerPhone" type="tel" /></label>
+    </div>
+    <div class="row">
+      <label>
+        Payment
+        <select name="paymentStatus" required>
+          <option value="cash_due">Cash due</option>
+          <option value="cash_received">Cash received</option>
+          <option value="paid_card">Paid (card)</option>
+        </select>
+      </label>
+      <label>
+        Waiver
+        <select name="waiverStatus" required>
+          <option value="missing">Missing — needs signing</option>
+          <option value="paper">Signed on paper</option>
+        </select>
+      </label>
+    </div>
+    <label>Notes <input name="notes" /></label>
+    <div><button class="btn" type="submit">Add booking</button></div>
+  </form>
+</Admin>

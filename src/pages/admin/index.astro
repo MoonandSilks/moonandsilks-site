@@ -1,0 +1,50 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { sessionLabel, sessionsOverview } from '../../lib/admin';
+import { releaseExpiredHolds } from '../../lib/booking';
+import { expireCheckoutSessions } from '../../lib/stripe';
+export const prerender = false;
+
+await expireCheckoutSessions(await releaseExpiredHolds());
+const sessions = await sessionsOverview();
+---
+
+<Admin title="Sessions">
+  <h1>Sessions</h1>
+  <p>
+    <a class="btn btn--ghost btn-small" href="/admin/export.csv" download>Export all rosters (CSV) — sensitive: includes health notes</a>
+  </p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Session</th>
+          <th scope="col">Booked</th>
+          <th scope="col">Held (paying now)</th>
+          <th scope="col">Cash due</th>
+          <th scope="col">Waiver not online</th>
+          <th scope="col">Health flags</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          sessions.map((s) => (
+            <tr>
+              <td>
+                <a href={`/admin/session/${s.id}`}>{sessionLabel(s)}</a>
+              </td>
+              <td>
+                {s.confirmed} / {s.capacity}
+                {s.confirmed >= s.capacity && <span class="badge warn">Full</span>}
+              </td>
+              <td>{s.held || '—'}</td>
+              <td>{s.cashDue ? <span class="badge due">{s.cashDue}</span> : '—'}</td>
+              <td>{s.waiverMissing ? <span class="badge warn">{s.waiverMissing}</span> : '—'}</td>
+              <td>{s.health ? <span class="badge warn">{s.health}</span> : '—'}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+</Admin>

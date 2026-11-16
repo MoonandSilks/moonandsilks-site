@@ -1,0 +1,26 @@
+---
+import Base from '../../layouts/Base.astro';
+import { releaseOrder } from '../../lib/booking';
+import { expireCheckoutSessions } from '../../lib/stripe';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'no-store');
+Astro.response.headers.set('X-Robots-Tag', 'noindex');
+
+// Came back from Stripe without paying: release the held spots now.
+const token = Astro.url.searchParams.get('o') ?? '';
+if (token) {
+  const order = await releaseOrder({ token });
+  if (order?.status === 'expired' && order.stripeSessionId) await expireCheckoutSessions([order.stripeSessionId]);
+}
+---
+
+<Base title="Payment cancelled" description="Your payment was cancelled.">
+  <section class="section">
+    <div class="wrap">
+      <h1>Payment cancelled</h1>
+      <p class="lede">Nothing was charged and your held spots have been released.</p>
+      <p><a class="btn" href="/book">Back to booking</a></p>
+    </div>
+  </section>
+</Base>

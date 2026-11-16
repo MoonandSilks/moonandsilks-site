@@ -1,0 +1,185 @@
+---
+import '@fontsource/fraunces/latin-600.css';
+import '@fontsource/source-sans-3/latin-400.css';
+import '@fontsource/source-sans-3/latin-600.css';
+import '../styles/global.css';
+interface Props {
+  title: string;
+  loggedIn?: boolean;
+}
+const { title, loggedIn = true } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en-AU">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{title} | Moon & Silks admin</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="admin-bar">
+      <div class="wrap bar">
+        <a href="/admin" class="brand">Moon & Silks · Admin</a>
+        {
+          loggedIn && (
+            <nav aria-label="Admin">
+              <a href="/admin">Sessions</a>
+              <a href="/admin/import">Import CSV</a>
+              <form method="post" action="/api/admin/logout">
+                <button type="submit" class="linkish">Log out</button>
+              </form>
+            </nav>
+          )
+        }
+      </div>
+    </header>
+    <main id="main" tabindex="-1" class="section">
+      <div class="wrap">
+        <slot />
+      </div>
+    </main>
+  </body>
+</html>
+
+<style is:global>
+  .admin-bar {
+    background: var(--ink-blue);
+    color: var(--page);
+  }
+  .admin-bar .bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    min-height: 56px;
+  }
+  .admin-bar a,
+  .admin-bar .linkish {
+    color: var(--page);
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .admin-bar .brand {
+    font-family: var(--font-head);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .admin-bar nav {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+  .admin-bar :focus-visible {
+    outline-color: var(--page);
+  }
+  .linkish {
+    background: none;
+    border: 0;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+  }
+  .flash {
+    background: var(--pale-blue);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+  }
+  .flash.err {
+    background: #fbeaea;
+    color: var(--error);
+  }
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+  .table-wrap table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.95rem;
+  }
+  .table-wrap th,
+  .table-wrap td {
+    text-align: left;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .table-wrap th {
+    background: var(--pale-gold);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge {
+    display: inline-block;
+    padding: 0.1rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: var(--pale-blue);
+    white-space: nowrap;
+  }
+  .badge.warn {
+    background: #fbeaea;
+    color: var(--error);
+  }
+  .badge.ok {
+    background: #e3f1e6;
+    color: #1f5a2c;
+  }
+  .badge.due {
+    background: var(--pale-gold);
+    color: #6b521a;
+  }
+  .health {
+    background: #fff1e0;
+    border-left: 4px solid #b45309;
+    padding: 0.35rem 0.6rem;
+    border-radius: 4px;
+    color: #6b3205;
+  }
+  .admin-form {
+    display: grid;
+    gap: 0.9rem;
+    max-width: 40rem;
+  }
+  .admin-form .row {
+    display: grid;
+    gap: 0.9rem;
+  }
+  @media (min-width: 640px) {
+    .admin-form .row {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  .admin-form label {
+    font-weight: 600;
+    display: grid;
+    gap: 0.3rem;
+  }
+  .admin-form input,
+  .admin-form select,
+  .admin-form textarea {
+    font: inherit;
+    font-weight: 400;
+    border: 1.5px solid #8f877c;
+    border-radius: 8px;
+    padding: 0.55rem 0.7rem;
+    min-height: 44px;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .btn-small {
+    min-height: 40px;
+    padding: 0.35rem 0.9rem;
+    font-size: 0.95rem;
+  }
+</style>

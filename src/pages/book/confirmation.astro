@@ -1,0 +1,109 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getOrderSummary } from '../../lib/booking';
+import { formatDay, formatTime } from '../../lib/dates';
+import { formatAud } from '../../lib/money';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'no-store');
+Astro.response.headers.set('X-Robots-Tag', 'noindex');
+
+const token = Astro.url.searchParams.get('o') ?? '';
+const s = token ? await getOrderSummary(token) : null;
+// Health details are never part of this summary.
+const pending = s?.status === 'pending';
+---
+
+<Base title="Booking confirmation" description="Your Moon and Silks Circus Co booking.">
+  <section class="section">
+    <div class="wrap">
+      {
+        !s ? (
+          <>
+            <h1>Booking not found</h1>
+            <p>
+              We couldn’t find that booking. <a href="/book">Go to bookings</a> or <a href="/contact">contact us</a>.
+            </p>
+          </>
+        ) : (
+          <>
+            <h1>
+              {s.status === 'confirmed'
+                ? 'You’re booked in'
+                : pending
+                  ? 'Confirming your payment…'
+                  : s.status === 'refunded' || s.status === 'refund_needed'
+                    ? 'Sorry, that class filled up'
+                    : 'Booking not completed'}
+            </h1>
+            <div role="status" aria-live="polite">
+              {s.status === 'confirmed' && s.paymentMethod === 'cash' && (
+                <p class="lede">
+                  <strong>Cash due at class: {formatAud(s.netCents)}.</strong> Please bring it with you.
+                </p>
+              )}
+              {s.status === 'confirmed' && s.paymentMethod === 'card' && (
+                <p class="lede">
+                  Paid by card: {formatAud(s.totalCents)} (includes {formatAud(s.surchargeCents)} card surcharge).
+                </p>
+              )}
+              {pending && <p class="lede" id="pending-msg">Waiting for confirmation from Stripe. This page will update by itself.</p>}
+              {(s.status === 'refunded' || s.status === 'refund_needed') && (
+                <p class="lede">Your payment came through after the spots were taken, so it is being refunded in full. Please <a href="/contact">contact us</a>.</p>
+              )}
+              {(s.status === 'expired' || s.status === 'cancelled') && (
+                <p class="lede">
+                  Nothing was charged and no spots are held. <a href="/book">Start a new booking</a>.
+                </p>
+              )}
+            </div>
+            {(s.status === 'confirmed' || pending) && (
+              <div class="summary">
+                <h2>Classes</h2>
+                <ul>
+                  {s.lines.map((l) => (
+                    <li>
+                      <strong>{l.participant}</strong> — {formatDay(l.startsAt)}, {formatTime(l.startsAt)} ({l.ageGroup})
+                    </li>
+                  ))}
+                </ul>
+                <p class="muted">Venue: Nannup District High School. Booked by {s.bookerName}.</p>
+              </div>
+            )}
+            <p>
+              <a href="/">Back to home</a>
+            </p>
+          </>
+        )
+      }
+    </div>
+  </section>
+  {pending && <script is:inline define:vars={{ token }}>
+    (function poll(n) {
+      if (n > 40) return;
+      setTimeout(function () {
+        fetch('/api/order-status?o=' + encodeURIComponent(token), { cache: 'no-store' })
+          .then(function (r) { return r.json(); })
+          .then(function (d) { if (d.status && d.status !== 'pending') location.reload(); else poll(n + 1); })
+          .catch(function () { poll(n + 1); });
+      }, 2500);
+    })(0);
+  </script>}
+</Base>
+
+<style>
+  .summary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+    max-width: 40rem;
+  }
+  .summary h2 {
+    font-size: 1.2rem;
+  }
+  .summary ul {
+    padding-left: 1.2rem;
+  }
+</style>

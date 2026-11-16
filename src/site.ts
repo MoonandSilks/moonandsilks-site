@@ -1,7 +1,7 @@
 // Business facts in one place. Every value marked `placeholder: true` is waiting on the owner.
 export const site = {
   name: 'Moon and Silks Circus Co',
-  url: 'https://moonandsilks.com',
+  url: 'https://www.moonandsilks.com',
   email: { value: 'hello@moonandsilks.com', placeholder: true },
   location: { value: '[placeholder: venue / suburb]', placeholder: true },
   socials: [
