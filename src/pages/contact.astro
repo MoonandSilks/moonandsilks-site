@@ -26,8 +26,8 @@ const mailto = `mailto:${site.email.value}`;
       >
         {
           !endpoint && (
-            <p class="notice" data-placeholder="true">
-              [placeholder: form endpoint] This form is not connected yet. Please email{' '}
+            <p class="notice">
+              This form is not connected yet. Please email{' '}
               <a href={mailto}>{site.email.value}</a> instead.
             </p>
           )

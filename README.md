@@ -98,14 +98,11 @@ The template is `data/existing-bookings-template.csv`; it can also be downloaded
    - Confirm both appear on the roster with the right payment status, the health flag shows, and the waiver PDF opens.
    - Only then switch Stripe to live keys.
 
-## Placeholders still on the marketing pages
+## Still to add
 
-These show as dashed gold boxes. Search the code for `placeholder` to find them all.
-
-- **Business facts** (email, social links): `src/site.ts`
-- **About page** (instructor name, bio, photo): `src/pages/about.astro`
-- **Home page** (hero line and class cards): `src/pages/index.astro`
-- **Contact form endpoint:** `PUBLIC_FORM_ENDPOINT`
+- **About photo:** add the image to `public/`, then set `photo` at the top of `src/pages/about.astro`.
+- **Contact form endpoint:** `PUBLIC_FORM_ENDPOINT`.
+- **Business facts** (email, venue, social links) live in `src/site.ts`.
 
 ## Hosting note
 

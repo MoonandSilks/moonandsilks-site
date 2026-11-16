@@ -1,27 +1,25 @@
 ---
 import Base from '../layouts/Base.astro';
+
+// Photo slot: add the file to public/ and set e.g. { src: '/about.webp', width: 600, height: 750, alt: '…' }.
+type Photo = { src: string; width: number; height: number; alt: string };
+const photo = null as Photo | null;
 ---
 
 <Base title="About" description="Meet the instructor behind Moon and Silks Circus Co and find out what aerial silk classes feel like.">
   <section class="section">
-    <div class="wrap about">
-      <figure class="portrait" data-placeholder="true">
-        <!-- Replace with: <img src="/about.webp" width="600" height="750" alt="[Instructor name] on the aerial silks" /> -->
-        <div class="frame" role="img" aria-label="[placeholder: photo of the instructor on the aerial silks]">
-          <span>[placeholder: about photo]</span>
-        </div>
-      </figure>
+    <div class:list={['wrap', { about: photo }]}>
+      {
+        photo && (
+          <figure class="portrait">
+            <img class="frame" src={photo.src} width={photo.width} height={photo.height} alt={photo.alt} />
+          </figure>
+        )
+      }
       <div>
         <h1>About</h1>
-        <h2 class="name"><span data-placeholder="true">[Instructor name]</span></h2>
         <p>
-          <span data-placeholder="true">[How long they have been teaching.]</span>
-        </p>
-        <p>
-          <span data-placeholder="true">[What the classes feel like.]</span>
-        </p>
-        <p>
-          <span data-placeholder="true">[Who is welcome.]</span>
+          With 15 years of experience in ballet and dance, my passion for movement, artistry and performance has always been a huge part of who I am. Over time, I transitioned from the world of traditional dance into the exciting world of aerial arts, beginning with aerial silks before expanding my skills to include lyra and flying trapeze. My journey has allowed me to combine my dance foundations with strength, creativity and a love for exploring new ways to move, express and perform in the air.
         </p>
         <p><a class="btn" href="/book">Book a class</a></p>
       </div>
@@ -49,15 +47,8 @@ import Base from '../layouts/Base.astro';
     aspect-ratio: 4 / 5;
     width: 100%;
     max-width: 420px;
-    display: grid;
-    place-items: center;
-    background: var(--pale-gold);
+    height: auto;
+    object-fit: cover;
     border-radius: calc(var(--radius) - 4px);
-    color: var(--ink-muted);
-    text-align: center;
-    padding: 1rem;
-  }
-  .name {
-    font-size: 1.4rem;
   }
 </style>

@@ -18,7 +18,7 @@ export async function sendConfirmationEmail(s: Summary): Promise<'sent' | 'skipp
     'Your Moon & Silks booking is confirmed:',
     ...lines,
     '',
-    'Venue: Nannup District High School',
+    'Venue: NDHS, Bishop Street, Nannup',
     '',
     cash
       ? `Payment: cash at class — ${formatAud(s.netCents)} due.`

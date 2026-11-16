@@ -1,12 +1,12 @@
-// Business facts in one place. Every value marked `placeholder: true` is waiting on the owner.
+// Business facts in one place.
 export const site = {
   name: 'Moon and Silks Circus Co',
   url: 'https://www.moonandsilks.com',
-  email: { value: 'hello@moonandsilks.com', placeholder: true },
-  location: { value: '[placeholder: venue / suburb]', placeholder: true },
+  email: { value: 'hello@moonandsilks.com', placeholder: false },
+  location: { value: 'NDHS, Bishop Street, Nannup', placeholder: false },
   socials: [
-    { label: 'Instagram', href: '#', placeholder: true },
-    { label: 'Facebook', href: '#', placeholder: true },
+    { label: 'Instagram @moonandsilkscircusco', href: 'https://www.instagram.com/moonandsilkscircusco/', placeholder: false },
+    { label: 'Facebook', href: 'https://www.facebook.com/share/1Da1hLdRAa/', placeholder: false },
   ],
   nav: [
     { label: 'Home', href: '/' },

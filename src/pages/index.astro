@@ -2,13 +2,13 @@
 import Base from '../layouts/Base.astro';
 
 const classes = [
-  { title: '[placeholder: class name]', text: '[placeholder: one line about this class and who it suits.]' },
-  { title: '[placeholder: class name]', text: '[placeholder: one line about this class and who it suits.]' },
-  { title: '[placeholder: class name]', text: '[placeholder: one line about this class and who it suits.]' },
+  { title: 'Ages 4–7', text: 'Saturdays at 9:00 am.' },
+  { title: 'Ages 8–12', text: 'Saturdays at 10:00 am.' },
+  { title: 'Teens & adults', text: 'Saturdays at 11:00 am.' },
 ];
 ---
 
-<Base title="Home" description="Aerial silk classes for children through to adults with Moon and Silks Circus Co. See class times and book online.">
+<Base title="Home" description="Aerial arts circus classes for children through to adults with Moon and Silks Circus Co at NDHS, Bishop Street, Nannup. See class times and book online.">
   <section class="hero">
     <div class="wrap hero-inner">
       <img
@@ -22,10 +22,7 @@ const classes = [
         fetchpriority="high"
       />
       <div class="hero-copy">
-        <h1>Aerial silk classes.</h1>
-        <p class="lede">
-          <span data-placeholder="true">[One sentence about who the classes are for, and where.]</span>
-        </p>
+        <h1>Aerial Arts Circus Classes</h1>
         <p><a class="btn" href="/book">Book a class</a></p>
       </div>
     </div>
@@ -38,12 +35,8 @@ const classes = [
         {
           classes.map((c) => (
             <li class="card">
-              <h3>
-                <span data-placeholder="true">{c.title}</span>
-              </h3>
-              <p>
-                <span data-placeholder="true">{c.text}</span>
-              </p>
+              <h3>{c.title}</h3>
+              <p>{c.text}</p>
               <a href="/book">
                 Book this class<span class="visually-hidden">: {c.title}</span>
               </a>

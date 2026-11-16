@@ -145,7 +145,7 @@ export async function createWebBooking(input: BookingInput, opts: { ip: string |
           unit_amount: s.priceCents,
           product_data: {
             name: `${formatDayShort(s.startsAt)}, ${formatTime(s.startsAt)} — ${s.ageGroup}`,
-            description: `Aerial & circus class at Nannup District High School. ${names.join(', ')}`.slice(0, 500),
+            description: `Aerial & circus class at NDHS, Bishop Street, Nannup. ${names.join(', ')}`.slice(0, 500),
           },
         },
       };
