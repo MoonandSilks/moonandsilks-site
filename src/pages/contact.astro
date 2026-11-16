@@ -1,0 +1,210 @@
+---
+import Base from '../layouts/Base.astro';
+import { site } from '../site';
+const endpoint = (import.meta.env.PUBLIC_FORM_ENDPOINT ?? '').trim();
+const mailto = `mailto:${site.email.value}`;
+---
+
+<Base title="Contact" description="Questions about aerial silk classes? Send Moon and Silks Circus Co a message.">
+  <section class="section">
+    <div class="wrap contact">
+      <div>
+        <h1>Contact</h1>
+        <p>Questions about classes? Send a message and you will hear back soon.</p>
+        <p class="muted">
+          Or email <a href={mailto} data-placeholder={site.email.placeholder ? 'true' : undefined}>{site.email.value}</a>
+        </p>
+      </div>
+
+      <form
+        id="contact-form"
+        action={endpoint || mailto}
+        method="post"
+        data-endpoint={endpoint}
+        data-mailto={mailto}
+        novalidate
+      >
+        {
+          !endpoint && (
+            <p class="notice" data-placeholder="true">
+              [placeholder: form endpoint] This form is not connected yet. Please email{' '}
+              <a href={mailto}>{site.email.value}</a> instead.
+            </p>
+          )
+        }
+
+        <div class="field">
+          <label for="name">Name</label>
+          <input id="name" name="name" type="text" autocomplete="name" required aria-describedby="name-error" />
+          <p class="error" id="name-error" hidden>Please enter your name.</p>
+        </div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" autocomplete="email" required aria-describedby="email-error" />
+          <p class="error" id="email-error" hidden>Please enter a valid email address.</p>
+        </div>
+
+        <div class="field">
+          <label for="phone">Phone <span class="optional">(optional)</span></label>
+          <input id="phone" name="phone" type="tel" autocomplete="tel" />
+        </div>
+
+        <div class="field">
+          <label for="message">Message</label>
+          <textarea id="message" name="message" rows="5" required aria-describedby="message-error"></textarea>
+          <p class="error" id="message-error" hidden>Please enter a message.</p>
+        </div>
+
+        <button class="btn" type="submit">Send message</button>
+        <div class="status" role="status" aria-live="polite"></div>
+      </form>
+    </div>
+  </section>
+</Base>
+
+<script>
+  const form = document.getElementById('contact-form') as HTMLFormElement | null;
+  if (form) {
+    const status = form.querySelector<HTMLElement>('.status')!;
+    const button = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const endpoint = form.dataset.endpoint ?? '';
+    const mailto = form.dataset.mailto ?? '';
+    const fields = ['name', 'email', 'message'].map((id) => form.querySelector<HTMLInputElement | HTMLTextAreaElement>(`#${id}`)!);
+
+    const say = (html: string, kind: 'ok' | 'error' | 'info') => {
+      status.className = `status status--${kind}`;
+      status.innerHTML = html;
+    };
+
+    const validate = () => {
+      let firstBad: HTMLElement | null = null;
+      for (const f of fields) {
+        const bad = !f.value.trim() || !f.checkValidity();
+        const err = document.getElementById(`${f.id}-error`)!;
+        err.hidden = !bad;
+        f.setAttribute('aria-invalid', String(bad));
+        if (bad && !firstBad) firstBad = f;
+      }
+      return firstBad;
+    };
+
+    fields.forEach((f) =>
+      f.addEventListener('input', () => {
+        if (f.getAttribute('aria-invalid') === 'true') validate();
+      }),
+    );
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const firstBad = validate();
+      if (firstBad) {
+        say('Please fix the highlighted fields.', 'error');
+        firstBad.focus();
+        return;
+      }
+      if (!endpoint) {
+        say(`This form is not connected yet, so nothing was sent. Please <a href="${mailto}">email us</a> instead.`, 'info');
+        return;
+      }
+      button.disabled = true;
+      say('Sending…', 'info');
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          body: new FormData(form),
+          headers: { Accept: 'application/json' },
+        });
+        if (!res.ok) throw new Error(String(res.status));
+        form.reset();
+        say('Thanks — your message has been sent.', 'ok');
+      } catch {
+        say(`Sorry, the message did not send. Please try again or <a href="${mailto}">email us</a>.`, 'error');
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+</script>
+
+<style>
+  .contact {
+    display: grid;
+    gap: 2rem;
+  }
+  @media (min-width: 768px) {
+    .contact {
+      grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+      gap: 3rem;
+      align-items: start;
+    }
+  }
+  form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: clamp(1.25rem, 4vw, 2rem);
+    display: grid;
+    gap: 1.1rem;
+  }
+  .field {
+    display: grid;
+    gap: 0.35rem;
+  }
+  label {
+    font-weight: 600;
+  }
+  .optional {
+    font-weight: 400;
+    color: var(--ink-muted);
+  }
+  input,
+  textarea {
+    font: inherit;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1.5px solid #8f877c;
+    border-radius: 8px;
+    padding: 0.7rem 0.8rem;
+    min-height: 48px;
+    width: 100%;
+  }
+  textarea {
+    resize: vertical;
+  }
+  input:focus-visible,
+  textarea:focus-visible {
+    border-color: var(--ink-blue);
+  }
+  [aria-invalid='true'] {
+    border-color: var(--error);
+  }
+  .error {
+    color: var(--error);
+    margin: 0;
+    font-size: 0.95rem;
+  }
+  .notice {
+    margin: 0;
+  }
+  button {
+    justify-self: start;
+  }
+  .status:empty {
+    display: none;
+  }
+  .status {
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+  }
+  .status--ok {
+    background: var(--pale-blue);
+  }
+  .status--error {
+    background: #fbeaea;
+    color: var(--error);
+  }
+  .status--info {
+    background: var(--pale-gold);
+  }
+</style>

@@ -1,0 +1,63 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="About" description="Meet the instructor behind Moon and Silks Circus Co and find out what aerial silk classes feel like.">
+  <section class="section">
+    <div class="wrap about">
+      <figure class="portrait" data-placeholder="true">
+        <!-- Replace with: <img src="/about.webp" width="600" height="750" alt="[Instructor name] on the aerial silks" /> -->
+        <div class="frame" role="img" aria-label="[placeholder: photo of the instructor on the aerial silks]">
+          <span>[placeholder: about photo]</span>
+        </div>
+      </figure>
+      <div>
+        <h1>About</h1>
+        <h2 class="name"><span data-placeholder="true">[Instructor name]</span></h2>
+        <p>
+          <span data-placeholder="true">[How long they have been teaching.]</span>
+        </p>
+        <p>
+          <span data-placeholder="true">[What the classes feel like.]</span>
+        </p>
+        <p>
+          <span data-placeholder="true">[Who is welcome.]</span>
+        </p>
+        <p><a class="btn" href="/book">Book a class</a></p>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .about {
+    display: grid;
+    gap: 2rem;
+    align-items: start;
+  }
+  @media (min-width: 768px) {
+    .about {
+      grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+      gap: 3rem;
+    }
+  }
+  .portrait {
+    margin: 0;
+    padding: 0.5rem;
+  }
+  .frame {
+    aspect-ratio: 4 / 5;
+    width: 100%;
+    max-width: 420px;
+    display: grid;
+    place-items: center;
+    background: var(--pale-gold);
+    border-radius: calc(var(--radius) - 4px);
+    color: var(--ink-muted);
+    text-align: center;
+    padding: 1rem;
+  }
+  .name {
+    font-size: 1.4rem;
+  }
+</style>
