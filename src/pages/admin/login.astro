@@ -1,0 +1,21 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { adminConfigured, isAdmin } from '../../lib/auth';
+export const prerender = false;
+if (isAdmin(Astro.cookies)) return Astro.redirect('/admin', 303);
+const failed = Astro.url.searchParams.has('failed');
+const configured = adminConfigured();
+---
+
+<Admin title="Log in" loggedIn={false}>
+  <h1>Admin log in</h1>
+  {!configured && <p class="flash err" role="alert">Admin login is not set up. Add ADMIN_PASSWORD and AUTH_SECRET (32+ characters) in Vercel, then redeploy.</p>}
+  {failed && <p class="flash err" role="alert">That password didn’t work.</p>}
+  <form method="post" action="/api/admin/login" class="admin-form">
+    <label>
+      Password
+      <input type="password" name="password" autocomplete="current-password" required />
+    </label>
+    <div><button class="btn" type="submit">Log in</button></div>
+  </form>
+</Admin>

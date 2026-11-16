@@ -21,11 +21,11 @@ for (let p = 0; p < info.width * info.height; p++) {
 const cut = sharp(out, { raw: { width: info.width, height: info.height, channels: 4 } });
 const trimmed = await cut.png().toBuffer().then((b) => sharp(b).trim({ threshold: 1 }).png().toBuffer());
 
-const write = (size, file) => sharp(trimmed).resize({ width: size, height: size, fit: 'inside' });
-await write(512, '').png({ compressionLevel: 9, palette: true, quality: 90 }).toFile('public/logo.png');
+const write = (size) => sharp(trimmed).resize({ width: size, height: size, fit: 'inside' });
+await write(512).png({ compressionLevel: 9, palette: true, quality: 90 }).toFile('public/logo.png');
 await sharp(trimmed).resize({ height: 160 }).webp({ quality: 85, alphaQuality: 90 }).toFile('public/logo-header.webp');
-await write(640, '').webp({ quality: 82, alphaQuality: 90 }).toFile('public/logo-640.webp');
-await write(1024, '').webp({ quality: 82, alphaQuality: 90 }).toFile('public/logo-1024.webp');
+await write(640).webp({ quality: 82, alphaQuality: 90 }).toFile('public/logo-640.webp');
+await write(1024).webp({ quality: 82, alphaQuality: 90 }).toFile('public/logo-1024.webp');
 // Icons on cream, padded square.
 const cream = { r: 255, g: 249, b: 241, alpha: 1 };
 const icon = (size) => sharp(trimmed).resize({ width: Math.round(size * 0.9), height: Math.round(size * 0.9), fit: 'contain', background: { ...cream, alpha: 0 } })

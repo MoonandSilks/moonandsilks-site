@@ -1,0 +1,58 @@
+---
+import { waiverBodyBlocks } from '../lib/waiver-render';
+const blocks = waiverBodyBlocks();
+---
+
+<article class="waiver-text" aria-labelledby="waiver-title">
+  {
+    blocks.map((b) =>
+      b.type === 'org' ? (
+        <p class="org">{b.text}</p>
+      ) : b.type === 'title' ? (
+        <h3 id="waiver-title" class="title">{b.text}</h3>
+      ) : b.type === 'heading' ? (
+        <h4>{b.text}</h4>
+      ) : b.type === 'list' ? (
+        <ul>
+          {b.items.map((i) => (
+            <li>{i}</li>
+          ))}
+        </ul>
+      ) : (
+        <p>{b.text}</p>
+      ),
+    )
+  }
+</article>
+
+<style>
+  .waiver-text {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: clamp(1rem, 4vw, 2rem);
+    max-width: 46rem;
+  }
+  .org {
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--ink-muted);
+    margin-bottom: 0.25rem;
+  }
+  .title {
+    font-size: 1.3rem;
+  }
+  h4 {
+    font-family: var(--font-head);
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin: 1.5em 0 0.4em;
+  }
+  ul {
+    margin: 0 0 1em;
+    padding-left: 1.25rem;
+  }
+  li {
+    margin-bottom: 0.2em;
+  }
+</style>

@@ -7,14 +7,30 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "logo": "node scripts/make-logo.mjs"
+    "logo": "node scripts/make-logo.mjs",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx --env-file-if-exists=.env scripts/db-migrate.ts",
+    "db:seed": "tsx --env-file-if-exists=.env scripts/db-seed.ts",
+    "db:setup": "npm run db:migrate && npm run db:seed",
+    "import:csv": "tsx --env-file-if-exists=.env scripts/import-csv.ts",
+    "test": "tsx --env-file-if-exists=.env --test tests/*.test.ts"
   },
   "dependencies": {
+    "@astrojs/vercel": "^11.0.22",
     "@fontsource/fraunces": "^5.3.0",
     "@fontsource/source-sans-3": "^5.3.1",
-    "astro": "^7.4.12"
+    "astro": "^7.4.12",
+    "drizzle-orm": "^0.45.4",
+    "pdf-lib": "^1.17.1",
+    "postgres": "^4.1.1",
+    "stripe": "^23.1.0"
   },
   "devDependencies": {
-    "sharp": "^0.35.5"
+    "@astrojs/check": "^0.9.12",
+    "@types/node": "^22.20.5",
+    "drizzle-kit": "^0.31.11",
+    "sharp": "^0.35.5",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
   }
 }

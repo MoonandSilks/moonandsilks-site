@@ -1,0 +1,64 @@
+---
+import Admin from '../../layouts/Admin.astro';
+import { importCsv, type ImportReport } from '../../lib/importer';
+export const prerender = false;
+
+let report: ImportReport | null = null;
+let error: string | null = null;
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData();
+  const file = form.get('file');
+  if (!(file instanceof File) || file.size === 0) error = 'Choose a CSV file.';
+  else if (file.size > 1_000_000) error = 'That file is too large (max 1 MB).';
+  else report = await importCsv(await file.text());
+}
+---
+
+<Admin title="Import bookings">
+  <h1>Import existing bookings</h1>
+  <p>
+    Upload a CSV using the <a href="/admin/import-template.csv" download>template</a>. Each row is one participant in one session. Rows
+    that would overbook a session, duplicates (same name and date of birth in the same session) and invalid rows are skipped and listed below.
+  </p>
+  <p class="muted">“signed” waivers are recorded as <em>Signed (paper/imported)</em>. Make sure a real waiver exists for each of those.</p>
+  {error && <p class="flash err" role="alert">{error}</p>}
+  <form method="post" enctype="multipart/form-data" class="admin-form">
+    <label>CSV file <input type="file" name="file" accept=".csv,text/csv" required /></label>
+    <div><button class="btn" type="submit">Import</button></div>
+  </form>
+
+  {
+    report && (
+      <section aria-labelledby="report-h" style="margin-top:2rem">
+        <h2 id="report-h">Result</h2>
+        <p class="flash" role="status">
+          Imported {report.imported} {report.imported === 1 ? 'row' : 'rows'}. Check any skipped rows below.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Line</th>
+                <th scope="col">Name</th>
+                <th scope="col">Outcome</th>
+                <th scope="col">Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {report.results.map((r) => (
+                <tr>
+                  <td>{r.line}</td>
+                  <td>{r.name}</td>
+                  <td>
+                    <span class:list={['badge', { ok: r.outcome === 'imported', warn: r.outcome !== 'imported' }]}>{r.outcome}</span>
+                  </td>
+                  <td>{r.message}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    )
+  }
+</Admin>
