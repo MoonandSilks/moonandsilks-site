@@ -1,11 +1,17 @@
 ---
 import Base from '../layouts/Base.astro';
+import { formatTime } from '../lib/dates';
+import { SEED_SESSIONS } from '../lib/sessions-seed';
 
-const classes = [
-  { title: 'Ages 4–7', text: 'Saturdays at 9:00 am.' },
-  { title: 'Ages 8–12', text: 'Saturdays at 10:00 am.' },
-  { title: 'Teens & adults', text: 'Saturdays at 11:00 am.' },
-];
+// One card per age group, from the class data the database is seeded with.
+const formatDuration = (min: number) =>
+  min % 60 === 0 ? `${min / 60} ${min === 60 ? 'hour' : 'hours'}` : `${min} minutes`;
+const formatPrice = (cents: number) => (cents % 100 === 0 ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`);
+const classes = [...new Map(SEED_SESSIONS.map((s) => [s.ageGroup, s])).values()].map((s) => ({
+  title: s.ageGroup,
+  text: `Saturdays at ${formatTime(s.startsAt)}.`,
+  details: `${formatDuration(s.durationMin)}, ${formatPrice(s.priceCents)}`,
+}));
 ---
 
 <Base title="Home" description="Aerial arts circus classes for children through to adults with Moon and Silks Circus Co at NDHS, Bishop Street, Nannup. See class times and book online.">
@@ -36,7 +42,11 @@ const classes = [
           classes.map((c) => (
             <li class="card">
               <h3>{c.title}</h3>
-              <p>{c.text}</p>
+              <p>
+                {c.text}
+                <br />
+                {c.details}
+              </p>
               <a href="/book">
                 Book this class<span class="visually-hidden">: {c.title}</span>
               </a>
