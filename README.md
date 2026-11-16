@@ -38,11 +38,19 @@ Put the `whsec_…` secret it prints into `STRIPE_WEBHOOK_SECRET`, then pay with
 ## How it works
 
 - **Capacity (10 per session) is enforced in the database.** Each booking locks the session rows (`SELECT … FOR UPDATE`) and re-counts confirmed spots plus unexpired holds before it inserts anything, so two people can't take the last spot. This is tested in `tests/booking.test.ts`, which fires 10 bookings at a session with 1 spot left: exactly one succeeds.
-- **Card payments:** spots are held for 15 minutes, then a hosted Stripe Checkout opens. Spots are confirmed **only** when the `checkout.session.completed` webhook arrives, and a repeated webhook is ignored. Holds are released when the person cancels in Checkout, when Stripe reports the session expired or failed, and lazily whenever someone next loads `/book` or `/admin`.
+- **Online payments:** spots are held for about 30 minutes, then a hosted Stripe Checkout opens.
+  - The hold and the Checkout Session expire at the same moment (31 minutes, because Stripe's minimum is 30).
+  - Prices are set on the server. Classes and the surcharge are separate line items.
+  - Checkout is created with an idempotency key, so a retry can't open a second Checkout.
+  - Spots are confirmed **only** by a verified `checkout.session.completed` webhook with `payment_status = paid`.
+  - Each Stripe event id is stored, so redelivered events are ignored.
+  - Holds are released when the person cancels in Checkout, when Stripe reports the session expired or failed, and lazily whenever someone next loads `/book` or `/admin`.
   - If a payment lands after its hold lapsed and the class has filled in the meantime, the payment is refunded automatically and the order shows as refunded.
-  - Stripe Checkout must stay open at least 30 minutes, so the site expires the Checkout itself when the 15-minute hold lapses.
+  - Payment methods are left to Stripe (dynamic payment methods: cards, Apple Pay, Google Pay, Link). Keep delayed methods such as bank transfers **off** in the Dashboard: they don't fit a 30-minute hold.
 - **Cash payments** confirm the spot immediately as "cash due". The admin roster has a "Mark cash received" button.
-- **Card surcharge:** `gross = (net + fixed) / (1 − percent)`, rounded up to the cent. It is shown as its own line before payment and on the Stripe page.
+- **Card surcharge:** `gross = (net + fixed) / (1 − percent)`, applied once per payment and rounded up to the cent. It is shown as its own line before payment and on the Stripe page.
+  - The default is Stripe's AU domestic card rate, 1.65% + A$0.30.
+  - International cards cost more; that difference is absorbed, not charged.
 - **Waivers:** the full wording lives in `src/lib/waiver-text.ts` and is stored in the database by version and SHA-256. Each signature records the typed names, the time (UTC and Perth), the IP address, every field value and every acknowledgement.
   - If the participant is under 18 on their first class date, the parent/guardian section is required.
   - If the wording ever changes, bump `WAIVER_VERSION` and run `npm run db:seed`. Old signatures keep pointing at the old wording.
@@ -64,9 +72,13 @@ The template is `data/existing-bookings-template.csv`; it can also be downloaded
 
 1. **Stripe**
    - Create an account at stripe.com (Australia, for Moon & Silks) and complete Stripe's identity checks.
-   - Developers → API keys: copy the **test** secret and publishable keys first.
-   - Developers → Webhooks → Add endpoint: `https://www.moonandsilks.com/api/stripe-webhook`. Select the events `checkout.session.completed`, `checkout.session.expired`, `checkout.session.async_payment_succeeded` and `checkout.session.async_payment_failed`, then copy the signing secret (`whsec_…`).
-   - Check your fee on Stripe's pricing page and set `STRIPE_FEE_PERCENT` and `STRIPE_FEE_FIXED` to exactly that cost, **never higher**. The default 1.7% + $0.30 is Stripe's standard domestic card rate; confirm it matches your account.
+   - Developers → API keys: in **test mode**, create a **restricted key** (`rk_test_…`) with write access to *Checkout Sessions* and *Refunds*. Put it in `STRIPE_SECRET_KEY`. An `sk_test_…` secret key also works.
+   - The publishable key is optional: the site redirects to Stripe's hosted page.
+   - Settings → Payment methods: turn on **Link** and leave cards, Apple Pay and Google Pay on. Keep bank transfers and other delayed methods off.
+   - Developers → Webhooks → Add endpoint: `https://www.moonandsilks.com/api/stripe-webhook`. Select the events `checkout.session.completed` and `checkout.session.expired`, then copy the signing secret (`whsec_…`). The async payment events are handled too, but are only needed if delayed methods are switched on later.
+   - Check your fee on Stripe's pricing page and set `STRIPE_FEE_PERCENT` and `STRIPE_FEE_FIXED` to exactly that cost, **never higher**. The defaults, 1.65% and 0.30, are Stripe's standard AU domestic card rate from stripe.com/au/pricing; confirm they match your account.
+   - Leave **Stripe Tax off** unless you are GST-registered. If you are, set up Stripe Tax with an Australian GST registration, keep prices GST-inclusive, and ask for the code to be updated.
+   - Occasional family or group invoices are made by hand in the Stripe Dashboard (Invoices → Create), not through `/book`. Add or mark those bookings in `/admin`.
    - Switch to the **live** keys (and a live-mode webhook) only after the go-live check below.
 2. **Database**
    - In the Vercel project, open Storage (Marketplace) and add the free **Neon** Postgres integration. It sets `DATABASE_URL` for you.

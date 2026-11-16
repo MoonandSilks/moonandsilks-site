@@ -6,7 +6,7 @@ const url = process.env.TEST_DATABASE_URL;
 if (!url) throw new Error('Set TEST_DATABASE_URL to a throwaway database');
 process.env.DATABASE_URL = url;
 process.env.DB_POOL_MAX = '12';
-process.env.STRIPE_FEE_PERCENT = '1.7';
+process.env.STRIPE_FEE_PERCENT = '1.65';
 process.env.STRIPE_FEE_FIXED = '0.30';
 
 const { sql, eq } = await import('drizzle-orm');
@@ -63,14 +63,14 @@ describe('schedule', () => {
 describe('surcharge', () => {
   test('passes the fee through at cost, rounded up by under a cent', () => {
     for (const net of [2000, 4000, 6000, 18000]) {
-      const s = cardSurchargeCents(net, 1.7, 30);
+      const s = cardSurchargeCents(net, 1.65, 30);
       const gross = net + s;
-      const kept = gross - gross * 0.017 - 30;
+      const kept = gross - gross * 0.0165 - 30;
       assert.ok(kept >= net - 1e-9, `net ${net}: keeps ${kept}`);
       assert.ok(kept < net + 1, `net ${net}: not more than a cent over`);
     }
-    assert.equal(cardSurchargeCents(6000, 1.7, 30), 135); // 3 × $20 → $1.35
-    assert.equal(cardSurchargeCents(0, 1.7, 30), 0);
+    assert.equal(cardSurchargeCents(6000, 1.65, 30), 132); // 3 × $20 → $1.32, one fixed fee per payment
+    assert.equal(cardSurchargeCents(0, 1.65, 30), 0);
   });
 });
 
@@ -122,7 +122,7 @@ describe('capacity', () => {
 });
 
 describe('card confirmation (webhook logic)', () => {
-  async function heldOrder(sessionId: number, n: number, sid: string, minutes = 15) {
+  async function heldOrder(sessionId: number, n: number, sid: string, minutes = 31) {
     const exp = new Date(Date.now() + minutes * 60_000);
     const [order] = await db.insert(schema.orders).values({
       publicToken: newToken(), bookerName: 'X', bookerEmail: 'x@example.com', paymentMethod: 'card', status: 'pending',

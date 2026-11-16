@@ -23,6 +23,11 @@ export const POST: APIRoute = async ({ request }) => {
     return new Response('Bad signature', { status: 400 });
   }
 
+  // Ignore events we've already handled (Stripe retries and can redeliver).
+  const db = getDb();
+  const [seen] = await db.select({ id: schema.stripeEvents.id }).from(schema.stripeEvents).where(eq(schema.stripeEvents.id, event.id));
+  if (seen) return new Response('duplicate', { status: 200 });
+
   const session = event.data.object as Stripe.Checkout.Session;
   switch (event.type) {
     case 'checkout.session.completed':
@@ -46,5 +51,7 @@ export const POST: APIRoute = async ({ request }) => {
       await releaseOrder({ stripeSessionId: session.id });
       break;
   }
+  // Recorded only after successful handling, so a failed attempt is retried by Stripe.
+  await db.insert(schema.stripeEvents).values({ id: event.id, type: event.type }).onConflictDoNothing();
   return new Response('ok', { status: 200 });
 };

@@ -130,3 +130,10 @@ export const bookings = pgTable(
       .where(sql`status in ('held', 'confirmed')`),
   ],
 );
+
+/** Stripe webhook events already handled, so a redelivered event is ignored. */
+export const stripeEvents = pgTable('stripe_events', {
+  id: text('id').primaryKey(), // evt_…
+  type: text('type').notNull(),
+  processedAt: timestamp('processed_at', { withTimezone: true }).notNull().defaultNow(),
+});

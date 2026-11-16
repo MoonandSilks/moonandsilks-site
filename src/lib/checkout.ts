@@ -161,18 +161,18 @@ export async function createWebBooking(input: BookingInput, opts: { ip: string |
       });
     const session = await getStripe().checkout.sessions.create({
       mode: 'payment',
-      allowed_payment_method_types: ['card'],
+      // No payment_method_types: dynamic payment methods (cards, Apple/Google Pay, Link) are managed in the Dashboard.
       line_items: lineItems,
       customer_email: input.booker.email,
       client_reference_id: orderId,
       metadata: { order_id: orderId },
       payment_intent_data: { metadata: { order_id: orderId } },
-      // Stripe's minimum is 30 minutes; our own hold is shorter and lapses first.
-      expires_at: Math.floor(now.getTime() / 1000) + 31 * 60,
+      // Same deadline as the database hold (Stripe's minimum is 30 minutes).
+      expires_at: Math.floor(holdExpiresAt!.getTime() / 1000),
       success_url: `${opts.origin}/book/confirmation?o=${token}`,
       cancel_url: `${opts.origin}/book/cancelled?o=${token}`,
       locale: 'en',
-    });
+    }, { idempotencyKey: `checkout-${orderId}` });
     await getDb().update(orders).set({ stripeSessionId: session.id }).where(eq(orders.id, orderId));
     return { token, redirect: session.url! };
   } catch (e) {
