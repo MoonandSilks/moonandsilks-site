@@ -2,8 +2,8 @@
 
 Astro site for www.moonandsilks.com. The marketing pages (Home, About, Contact) are static. `/book` and `/admin` run as Vercel serverless functions backed by Postgres and Stripe.
 
-- **`/book`:** schedule, then a cart (several participants and/or several Saturdays), then one waiver per participant, then card or cash payment.
-- **`/admin`:** Natascha's private page. It has rosters, the cash-received toggle, manual add and cancel, CSV export, waiver PDFs and CSV import.
+- **`/book`:** schedule, then a cart (several participants and/or several Saturdays), then one waiver per participant, then card payment (Stripe). There is no cash option.
+- **`/admin`:** Natascha's private page. It has rosters, manual add and cancel, CSV export, waiver PDFs and CSV import.
 
 ## Run locally
 
@@ -47,7 +47,8 @@ Put the `whsec_…` secret it prints into `STRIPE_WEBHOOK_SECRET`, then pay with
   - Holds are released when the person cancels in Checkout, when Stripe reports the session expired or failed, and lazily whenever someone next loads `/book` or `/admin`.
   - If a payment lands after its hold lapsed and the class has filled in the meantime, the payment is refunded automatically and the order shows as refunded.
   - Payment methods are left to Stripe (dynamic payment methods: cards, Apple Pay, Google Pay, Link). Keep delayed methods such as bank transfers **off** in the Dashboard: they don't fit a 30-minute hold.
-- **Cash payments** confirm the spot immediately as "cash due". The admin roster has a "Mark cash received" button.
+- **No cash.** A spot counts as booked only after the Stripe payment succeeds. Unpaid holds lapse after the hold time and never show as booked.
+- **Waiver signing is required** to book (checked in the browser and on the server).
 - **Card surcharge:** `gross = (net + fixed) / (1 − percent)`, applied once per payment and rounded up to the cent. It is shown as its own line before payment and on the Stripe page.
   - The default is Stripe's AU domestic card rate, 1.65% + A$0.30.
   - International cards cost more; that difference is absorbed, not charged.
@@ -63,7 +64,7 @@ The template is `data/existing-bookings-template.csv`; it can also be downloaded
 
 - One row = one participant in one session. `session_date` is `2026-11-28`, `2026-12-05` or `2026-12-12`, and `session_time` is `09:00`, `10:00` or `11:00`.
 - `waiver_status` is `signed` or `missing`. Imported `signed` rows are labelled **Signed (paper/imported)**. Make sure a real waiver exists for each of them.
-- `payment_status` is `paid_card`, `cash_due` or `cash_received`.
+- `payment_status` is `paid_card`.
 - An empty `health_notes` means "not recorded", which is different from a waiver signed with "None".
 - Rows that would push a session over 10 are **rejected and listed**, never squeezed in.
 - If the same person (same name and date of birth) is already in that session, the row is **skipped and reported**, so re-running an import does not double-book.
@@ -94,15 +95,15 @@ The template is `data/existing-bookings-template.csv`; it can also be downloaded
    - Redeploy after saving.
 4. **Admin:** sign in at `https://www.moonandsilks.com/admin` with `ADMIN_PASSWORD`. When the existing-bookings CSV is ready, upload it at `/admin/import`, then check each roster.
 5. **Go-live check**
-   - Make one test-mode card booking (card `4242 4242 4242 4242`) and one cash booking, with a health note on one of them.
-   - Confirm both appear on the roster with the right payment status, the health flag shows, and the waiver PDF opens.
+   - Make one test-mode card booking (card `4242 4242 4242 4242`) and one booking with a health note.
+   - Confirm it appears on the roster with the right payment status, the health flag shows, and the waiver PDF opens.
    - Only then switch Stripe to live keys.
 
 ## Still to add
 
 - **About photo:** add the image to `public/`, then set `photo` at the top of `src/pages/about.astro`.
 - **Contact form endpoint:** `PUBLIC_FORM_ENDPOINT`.
-- **Business facts** (email, venue, social links) live in `src/site.ts`.
+- **Business facts** (venue, social links) live in `src/site.ts`.
 
 ## Hosting note
 

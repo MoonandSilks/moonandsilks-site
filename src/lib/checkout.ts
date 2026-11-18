@@ -1,9 +1,8 @@
 import { createHash } from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import { getOrderSummary, lockAndCheckCapacity, newToken, releaseExpiredHolds, releaseOrder } from './booking';
+import { lockAndCheckCapacity, newToken, releaseExpiredHolds, releaseOrder } from './booking';
 import { formatDayShort, formatTime, perthDate, perthStamp } from './dates';
 import { getDb, schema } from './db/client';
-import { sendConfirmationEmail } from './email';
 import { env, HOLD_MINUTES } from './env';
 import { cardSurchargeCents } from './money';
 import { expireCheckoutSessions, getStripe } from './stripe';
@@ -21,8 +20,8 @@ export async function sessionDateMap() {
 export class StaleWaiverError extends Error {}
 
 /**
- * Creates the order. Cash: spots confirmed immediately as cash due.
- * Card: spots held for HOLD_MINUTES, then a Stripe Checkout session is created; confirmation happens in the webhook.
+ * Creates a pending order. Spots are held for HOLD_MINUTES while Stripe Checkout is open;
+ * they are confirmed (and shown as booked) only by the payment webhook.
  */
 export async function createWebBooking(input: BookingInput, opts: { ip: string | null; origin: string }) {
   if (input.waiverVersion !== WAIVER_VERSION) throw new StaleWaiverError('The waiver has been updated. Please reload the page.');
@@ -37,10 +36,9 @@ export async function createWebBooking(input: BookingInput, opts: { ip: string |
       requested.set(id, (requested.get(id) ?? 0) + 1);
       netCents += byId.get(id)!.priceCents;
     }
-  const card = input.payment === 'card';
-  const surchargeCents = card ? cardSurchargeCents(netCents, env.feePercent, env.feeFixedCents) : 0;
+  const surchargeCents = cardSurchargeCents(netCents, env.feePercent, env.feeFixedCents);
   const now = new Date();
-  const holdExpiresAt = card ? new Date(now.getTime() + HOLD_MINUTES * 60_000) : null;
+  const holdExpiresAt = new Date(now.getTime() + HOLD_MINUTES * 60_000);
   const token = newToken();
 
   const orderId = await getDb().transaction(async (tx) => {
@@ -52,13 +50,13 @@ export async function createWebBooking(input: BookingInput, opts: { ip: string |
         bookerName: input.booker.name,
         bookerEmail: input.booker.email,
         bookerPhone: input.booker.phone,
-        paymentMethod: input.payment,
-        status: card ? 'pending' : 'confirmed',
+        paymentMethod: 'card',
+        status: 'pending',
         netCents,
         surchargeCents,
         totalCents: netCents + surchargeCents,
         holdExpiresAt,
-        confirmedAt: card ? null : now,
+        confirmedAt: null,
       })
       .returning({ id: orders.id });
 
@@ -113,8 +111,8 @@ export async function createWebBooking(input: BookingInput, opts: { ip: string |
           participantId: person.id,
           orderId: order.id,
           waiverId: waiver.id,
-          status: card ? 'held' : 'confirmed',
-          paymentStatus: card ? 'pending' : 'cash_due',
+          status: 'held',
+          paymentStatus: 'pending',
           waiverStatus: 'online',
           holdExpiresAt,
           source: 'web',
@@ -126,12 +124,6 @@ export async function createWebBooking(input: BookingInput, opts: { ip: string |
     }
     return order.id;
   });
-
-  if (!card) {
-    const summary = await getOrderSummary(token);
-    if (summary) await sendConfirmationEmail(summary);
-    return { token, redirect: `/book/confirmation?o=${token}` };
-  }
 
   // Hold is in place; now open hosted Checkout. Card details never touch this site.
   try {
@@ -168,7 +160,7 @@ export async function createWebBooking(input: BookingInput, opts: { ip: string |
       metadata: { order_id: orderId },
       payment_intent_data: { metadata: { order_id: orderId } },
       // Same deadline as the database hold (Stripe's minimum is 30 minutes).
-      expires_at: Math.floor(holdExpiresAt!.getTime() / 1000),
+      expires_at: Math.floor(holdExpiresAt.getTime() / 1000),
       success_url: `${opts.origin}/book/confirmation?o=${token}`,
       cancel_url: `${opts.origin}/book/cancelled?o=${token}`,
       locale: 'en',

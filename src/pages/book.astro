@@ -142,29 +142,10 @@ const price = schedule[0]?.priceCents ?? 2000;
                   </div>
                 </fieldset>
 
-                <fieldset class="group">
-                  <legend>How would you like to pay?</legend>
-                  <div class="choice">
-                    <input type="radio" name="payment" id="pay-card" value="card" disabled={!config.cardEnabled} />
-                    <label for="pay-card">
-                      Pay by card now{!config.cardEnabled && <span class="muted"> (not available yet)</span>}
-                      <span class="hint">Secure Stripe checkout. A small card surcharge covers the processing fee at cost.</span>
-                    </label>
-                  </div>
-                  <div class="choice">
-                    <input type="radio" name="payment" id="pay-cash" value="cash" />
-                    <label for="pay-cash">
-                      Pay cash at class
-                      <span class="hint">Your spots are booked now. Bring the amount due to class.</span>
-                    </label>
-                  </div>
-                  <p class="error" id="err-payment" hidden />
-                </fieldset>
-
                 <div class="cart" id="pay-summary" aria-live="polite" />
                 <div class="nav-row">
                   <button type="button" class="btn btn--ghost" data-prev="2">Back</button>
-                  <button type="submit" class="btn" id="submit-btn">Book</button>
+                  <button type="submit" class="btn" id="submit-btn" disabled={!config.cardEnabled}>Book</button>
                 </div>
               </section>
             </form>

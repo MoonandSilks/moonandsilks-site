@@ -37,12 +37,7 @@ const pending = s?.status === 'pending';
                     : 'Booking not completed'}
             </h1>
             <div role="status" aria-live="polite">
-              {s.status === 'confirmed' && s.paymentMethod === 'cash' && (
-                <p class="lede">
-                  <strong>Cash due at class: {formatAud(s.netCents)}.</strong> Please bring it with you.
-                </p>
-              )}
-              {s.status === 'confirmed' && s.paymentMethod === 'card' && (
+              {s.status === 'confirmed' && (
                 <p class="lede">
                   Paid by card: {formatAud(s.totalCents)} (includes {formatAud(s.surchargeCents)} card surcharge).
                 </p>

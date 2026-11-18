@@ -31,7 +31,6 @@ export type ParticipantInput = {
 export type BookingInput = {
   participants: ParticipantInput[];
   booker: { name: string; email: string; phone: string };
-  payment: 'card' | 'cash';
   waiverVersion: string;
 };
 
@@ -103,11 +102,9 @@ export function parseBooking(raw: unknown, sessionDates: Map<number, string>, to
   if (!booker.name) errors['booker.name'] = 'Enter your name.';
   if (!EMAIL.test(booker.email)) errors['booker.email'] = 'Enter a valid email address.';
   if (!PHONE.test(booker.phone)) errors['booker.phone'] = 'Enter a phone number.';
-  const payment = body.payment === 'card' || body.payment === 'cash' ? body.payment : null;
-  if (!payment) errors.payment = 'Choose how you would like to pay.';
 
   if (Object.keys(errors).length) return { errors };
-  return { value: { participants, booker, payment: payment!, waiverVersion: str(body.waiverVersion, 40) }, errors };
+  return { value: { participants, booker, waiverVersion: str(body.waiverVersion, 40) }, errors };
 }
 
 /** Under 18 on the earliest of their class dates means a parent/guardian must sign. */
