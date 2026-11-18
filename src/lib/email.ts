@@ -10,7 +10,6 @@ type Summary = NonNullable<Awaited<ReturnType<typeof import('./booking').getOrde
  */
 export async function sendConfirmationEmail(s: Summary): Promise<'sent' | 'skipped' | 'failed'> {
   if (!env.resendApiKey || !env.emailFrom) return 'skipped';
-  const cash = s.paymentMethod === 'cash';
   const lines = s.lines.map((l) => `• ${l.participant} — ${formatDayShort(l.startsAt)}, ${formatTime(l.startsAt)} (${l.ageGroup})`);
   const text = [
     `Hi ${s.bookerName},`,
@@ -20,9 +19,7 @@ export async function sendConfirmationEmail(s: Summary): Promise<'sent' | 'skipp
     '',
     'Venue: NDHS, Bishop Street, Nannup',
     '',
-    cash
-      ? `Payment: cash at class — ${formatAud(s.netCents)} due.`
-      : `Payment: paid by card — ${formatAud(s.totalCents)} (includes ${formatAud(s.surchargeCents)} card surcharge).`,
+    `Payment: paid by card — ${formatAud(s.totalCents)} (includes ${formatAud(s.surchargeCents)} card surcharge).`,
     '',
     'See you there!',
     'Moon & Silks Circus Co',

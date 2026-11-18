@@ -2,7 +2,6 @@
 export const site = {
   name: 'Moon and Silks Circus Co',
   url: 'https://www.moonandsilks.com',
-  email: { value: 'hello@moonandsilks.com', placeholder: false },
   location: { value: 'NDHS, Bishop Street, Nannup', placeholder: false },
   socials: [
     { label: 'Instagram @moonandsilkscircusco', href: 'https://www.instagram.com/moonandsilkscircusco/', placeholder: false },

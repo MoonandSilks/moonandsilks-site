@@ -23,8 +23,7 @@ export const POST: APIRoute = async ({ request, clientAddress, url }) => {
   const { dates } = await sessionDateMap();
   const { value, errors } = parseBooking(raw, dates, perthDate(new Date()));
   if (!value) return json({ error: 'Please check the highlighted fields.', fields: errors }, 422);
-  if (value.payment === 'card' && !stripeEnabled())
-    return json({ error: 'Card payments are not set up yet. Please choose “Pay cash at class”.', fields: { payment: 'Card payments are not available yet.' } }, 422);
+  if (!stripeEnabled()) return json({ error: 'Card payments are not available yet.' }, 503);
 
   let ip: string | null = null;
   try {

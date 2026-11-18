@@ -3,7 +3,7 @@ import { addConfirmedBooking, cleanDate, DuplicateError } from '../../../../lib/
 import { SoldOutError } from '../../../../lib/booking';
 export const prerender = false;
 
-const PAY = ['cash_due', 'cash_received', 'paid_card'] as const;
+const PAY = ['paid_card'] as const;
 const WAIVER = ['missing', 'paper'] as const;
 
 export const POST: APIRoute = async ({ request, redirect }) => {

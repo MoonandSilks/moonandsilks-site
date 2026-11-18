@@ -20,10 +20,7 @@ const sessions = await sessionsOverview();
         <tr>
           <th scope="col">Session</th>
           <th scope="col">Booked</th>
-          <th scope="col">Held (paying now)</th>
-          <th scope="col">Cash due</th>
-          <th scope="col">Waiver not online</th>
-          <th scope="col">Health flags</th>
+          <th scope="col">Health Flags</th>
         </tr>
       </thead>
       <tbody>
@@ -37,10 +34,7 @@ const sessions = await sessionsOverview();
                 {s.confirmed} / {s.capacity}
                 {s.confirmed >= s.capacity && <span class="badge warn">Full</span>}
               </td>
-              <td>{s.held || '—'}</td>
-              <td>{s.cashDue ? <span class="badge due">{s.cashDue}</span> : '—'}</td>
-              <td>{s.waiverMissing ? <span class="badge warn">{s.waiverMissing}</span> : '—'}</td>
-              <td>{s.health ? <span class="badge warn">{s.health}</span> : '—'}</td>
+              <td>{s.health > 0 && <span class="flag" role="img" aria-label="Health flag" title="Health flag">✱</span>}</td>
             </tr>
           ))
         }
@@ -48,3 +42,11 @@ const sessions = await sessionsOverview();
     </table>
   </div>
 </Admin>
+
+<style>
+  .flag {
+    color: #e6b400;
+    font-size: 1.3rem;
+    font-weight: 700;
+  }
+</style>

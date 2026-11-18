@@ -16,9 +16,6 @@ export async function sessionsOverview() {
       ageGroup: classSessions.ageGroup,
       capacity: classSessions.capacity,
       confirmed: sql<number>`count(*) filter (where ${bookings.status} = 'confirmed')::int`,
-      held: sql<number>`count(*) filter (where ${bookings.status} = 'held' and ${bookings.holdExpiresAt} > now())::int`,
-      cashDue: sql<number>`count(*) filter (where ${bookings.status} = 'confirmed' and ${bookings.paymentStatus} = 'cash_due')::int`,
-      waiverMissing: sql<number>`count(*) filter (where ${bookings.status} = 'confirmed' and ${bookings.waiverStatus} <> 'online')::int`,
       health: sql<number>`count(*) filter (where ${bookings.status} = 'confirmed' and ${participants.healthNotes} is not null)::int`,
     })
     .from(classSessions)
@@ -74,13 +71,6 @@ export async function roster(sessionId: number, includeInactive = false) {
   }));
 }
 
-export async function setCashReceived(bookingId: string, received: boolean) {
-  await getDb()
-    .update(bookings)
-    .set({ paymentStatus: received ? 'cash_received' : 'cash_due' })
-    .where(and(eq(bookings.id, bookingId), sql`${bookings.paymentStatus} in ('cash_due', 'cash_received')`));
-}
-
 /** Cancels a spot and frees capacity. The waiver record is kept. */
 export async function cancelBooking(bookingId: string) {
   await getDb()
@@ -104,7 +94,7 @@ export type ManualInput = {
   bookerName?: string | null;
   bookerEmail: string | null;
   bookerPhone?: string | null;
-  paymentStatus: 'paid_card' | 'cash_due' | 'cash_received';
+  paymentStatus: 'paid_card';
   waiverStatus: 'paper' | 'missing';
   notes: string | null;
   source: 'admin' | 'import';
@@ -166,8 +156,8 @@ export async function addConfirmedBooking(input: ManualInput) {
 
 const PAYMENT_LABEL: Record<string, string> = {
   paid_card: 'Paid (card)',
-  cash_due: 'Cash due',
-  cash_received: 'Cash received',
+  cash_due: 'Cash due (legacy)',
+  cash_received: 'Cash received (legacy)',
   pending: 'Awaiting card payment',
 };
 const WAIVER_LABEL: Record<string, string> = { online: 'Signed online', paper: 'Signed (paper/imported)', missing: 'MISSING' };

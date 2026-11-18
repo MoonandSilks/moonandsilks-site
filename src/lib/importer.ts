@@ -47,7 +47,7 @@ export async function importCsv(text: string): Promise<ImportReport> {
     if (!session) problems.push(`no session on ${get('session_date')} at ${get('session_time')}`);
     if (dobRaw && !cleanDate(dobRaw)) problems.push('date_of_birth must be YYYY-MM-DD');
     if (!['signed', 'missing'].includes(waiver)) problems.push('waiver_status must be signed or missing');
-    if (!['paid_card', 'cash_due', 'cash_received'].includes(payment)) problems.push('payment_status must be paid_card, cash_due or cash_received');
+    if (!['paid_card'].includes(payment)) problems.push('payment_status must be paid_card');
     if (problems.length) {
       report.results.push({ line, name, outcome: 'invalid', message: problems.join('; ') });
       continue;
@@ -65,7 +65,7 @@ export async function importCsv(text: string): Promise<ImportReport> {
         guardianName: get('guardian_name') || null,
         guardianRelationship: get('guardian_relationship') || null,
         bookerEmail: get('booker_email') || null,
-        paymentStatus: payment as 'paid_card' | 'cash_due' | 'cash_received',
+        paymentStatus: 'paid_card',
         waiverStatus: waiver === 'signed' ? 'paper' : 'missing',
         notes: get('notes') || null,
         source: 'import',

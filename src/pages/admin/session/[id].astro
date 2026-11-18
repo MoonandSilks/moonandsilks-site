@@ -72,14 +72,6 @@ const outOfBand = (age: number | null) =>
               <span class:list={['badge', { ok: r.paymentStatus === 'paid_card' || r.paymentStatus === 'cash_received', due: r.paymentStatus === 'cash_due' }]}>
                 {paymentLabel(r.paymentStatus)}
               </span>
-              {(r.paymentStatus === 'cash_due' || r.paymentStatus === 'cash_received') && (
-                <form method="post" action="/api/admin/booking/cash">
-                  <input type="hidden" name="booking" value={r.bookingId} />
-                  <input type="hidden" name="session" value={id} />
-                  <input type="hidden" name="received" value={r.paymentStatus === 'cash_due' ? '1' : '0'} />
-                  <button class="linkish" type="submit">{r.paymentStatus === 'cash_due' ? 'Mark cash received' : 'Undo: mark cash due'}</button>
-                </form>
-              )}
             </td>
             <td>
               {r.status === 'confirmed' && (
@@ -121,8 +113,6 @@ const outOfBand = (age: number | null) =>
       <label>
         Payment
         <select name="paymentStatus" required>
-          <option value="cash_due">Cash due</option>
-          <option value="cash_received">Cash received</option>
           <option value="paid_card">Paid (card)</option>
         </select>
       </label>

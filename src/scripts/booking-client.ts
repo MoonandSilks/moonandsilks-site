@@ -256,14 +256,10 @@ export function initBooking() {
     if (net <= 0) return 0;
     return Math.ceil((net + cfg.feeFixedCents) / (1 - cfg.feePercent / 100)) - net;
   }
-  function payment(): 'card' | 'cash' | null {
-    return ($<HTMLInputElement>('input[name="payment"]:checked')?.value as 'card' | 'cash') ?? null;
-  }
   function refreshPayment() {
     const counts = cartCounts();
     const spots = [...counts.values()].reduce((a, b) => a + b, 0);
     const net = [...counts.entries()].reduce((sum, [id, n]) => sum + n * byId.get(id)!.priceCents, 0);
-    const pay = payment();
     const box = $('#pay-summary')!;
     const btn = $<HTMLButtonElement>('#submit-btn')!;
     if (!spots) {
@@ -271,24 +267,15 @@ export function initBooking() {
       return;
     }
     const base = `<tr><td>${spots} ${spots === 1 ? 'session' : 'sessions'} × ${aud(unitPrice)}</td><td>${aud(net)}</td></tr>`;
-    if (pay === 'card') {
-      const s = surcharge(net);
-      box.innerHTML = `<table>${base}<tr><td>Card surcharge</td><td>${aud(s)}</td></tr><tr class="total"><td>Total to pay now</td><td>${aud(net + s)}</td></tr></table>`;
-      btn.textContent = `Pay ${aud(net + s)} by card`;
-    } else if (pay === 'cash') {
-      box.innerHTML = `<table>${base}<tr class="total"><td>Cash due at class</td><td>${aud(net)}</td></tr></table>`;
-      btn.textContent = 'Book and pay cash at class';
-    } else {
-      box.innerHTML = `<table>${base}</table>`;
-      btn.textContent = 'Book';
-    }
+    const s = surcharge(net);
+    box.innerHTML = `<table>${base}<tr><td>Card surcharge</td><td>${aud(s)}</td></tr><tr class="total"><td>Total to pay now</td><td>${aud(net + s)}</td></tr></table>`;
+    btn.textContent = `Pay ${aud(net + s)} by card`;
   }
   function validateStep3() {
     const errors: Record<string, string> = {};
     if (!val(form!, 'booker.name')) errors['booker.name'] = 'Enter your name.';
     if (!EMAIL.test(val(form!, 'booker.email'))) errors['booker.email'] = 'Enter a valid email address.';
     if (!PHONE.test(val(form!, 'booker.phone'))) errors['booker.phone'] = 'Enter a phone number.';
-    if (!payment()) errors.payment = 'Choose how you would like to pay.';
     return errors;
   }
   function prefillBooker() {
@@ -355,9 +342,6 @@ export function initBooking() {
       field(w, `p${idx(w)}.${f}`)!.value = val(src, `p${firstIdx}.${f}`);
     });
   });
-  form.addEventListener('change', (e) => {
-    if ((e.target as HTMLInputElement).name === 'payment') refreshPayment();
-  });
   // Clear an error as soon as the person fixes the field.
   form.addEventListener('input', (e) => {
     const t = e.target as HTMLElement;
@@ -412,7 +396,6 @@ export function initBooking() {
     const body = {
       participants,
       booker: { name: val(form!, 'booker.name'), email: val(form!, 'booker.email'), phone: val(form!, 'booker.phone') },
-      payment: payment(),
       waiverVersion: cfg.waiverVersion,
     };
     const btn = $<HTMLButtonElement>('#submit-btn')!;

@@ -6,6 +6,7 @@ const url = process.env.TEST_DATABASE_URL;
 if (!url) throw new Error('Set TEST_DATABASE_URL to a throwaway database');
 process.env.DATABASE_URL = url;
 process.env.DB_POOL_MAX = '12';
+process.env.STRIPE_SECRET_KEY = 'sk_test_dummy';
 process.env.STRIPE_FEE_PERCENT = '1.65';
 process.env.STRIPE_FEE_FIXED = '0.30';
 
@@ -15,10 +16,11 @@ const { getDb, closeDb, schema } = await import('../src/lib/db/client');
 const { SEED_SESSIONS } = await import('../src/lib/sessions-seed');
 const { createWebBooking } = await import('../src/lib/checkout');
 const { confirmCardOrder, getSchedule, releaseExpiredHolds, releaseOrder, SoldOutError, newToken } = await import('../src/lib/booking');
+const { getStripe } = await import('../src/lib/stripe');
 const { cardSurchargeCents } = await import('../src/lib/money');
 const { parseBooking } = await import('../src/lib/validate');
 const { importCsv } = await import('../src/lib/importer');
-const { addConfirmedBooking, cancelBooking, setCashReceived, roster, rosterCsv } = await import('../src/lib/admin');
+const { addConfirmedBooking, cancelBooking, roster, rosterCsv, sessionsOverview } = await import('../src/lib/admin');
 const { waiverPdf } = await import('../src/lib/pdf');
 const { WAIVER_TEXT, WAIVER_VERSION } = await import('../src/lib/waiver-text');
 const { createHash } = await import('node:crypto');
@@ -36,8 +38,21 @@ const person = (name: string, dob: string, sessionIds: number[], extra: Record<s
   guardianName: 'Pat Example', guardianRelationship: 'Parent', guardianSignature: 'Pat Example', sessionIds, ...extra,
 });
 const booker = { name: 'Pat Example', email: 'pat@example.com', phone: '0400 222 222' };
-const cash = (participants: ReturnType<typeof person>[]) =>
-  createWebBooking({ participants, booker, payment: 'cash', waiverVersion: WAIVER_VERSION }, { ip: '203.0.113.5', origin: 'http://localhost' });
+// Stripe is stubbed: Checkout sessions are fake, and payment is simulated by confirming via the webhook path.
+let nSessions = 0;
+getStripe().checkout.sessions.create = (async () => {
+  const id = `cs_fake_${++nSessions}`;
+  return { id, url: `https://checkout.stripe.test/${id}` };
+}) as never;
+const startBooking = (participants: ReturnType<typeof person>[]) =>
+  createWebBooking({ participants, booker, waiverVersion: WAIVER_VERSION }, { ip: '203.0.113.5', origin: 'http://localhost' });
+/** A booking that has been paid: checkout started, then confirmed by the webhook logic. */
+const cash = async (participants: ReturnType<typeof person>[]) => {
+  const r = await startBooking(participants);
+  const sid = r.redirect.split('/').pop()!;
+  await confirmCardOrder(sid, `pi_${sid}`);
+  return r;
+};
 
 before(async () => {
   await db.execute(sql`drop schema if exists public cascade; drop schema if exists drizzle cascade; create schema public;`);
@@ -168,7 +183,7 @@ describe('card confirmation (webhook logic)', () => {
 
 describe('waiver validation', () => {
   const dates = new Map([[1, '2026-11-28']]);
-  const body = (p: Record<string, unknown>) => ({ participants: [p], booker, payment: 'cash', waiverVersion: WAIVER_VERSION });
+  const body = (p: Record<string, unknown>) => ({ participants: [p], booker, waiverVersion: WAIVER_VERSION });
 
   test('under 18 on the class date needs guardian; adult does not', () => {
     const kid = parseBooking(body(person('Kid', '2010-01-01', [1], { guardianName: '', guardianRelationship: '', guardianSignature: '' })), dates, '2026-11-16');
@@ -206,13 +221,21 @@ describe('waiver validation', () => {
 });
 
 describe('admin', () => {
-  test('cash toggle, cancel frees capacity and keeps the waiver, CSV includes health', async () => {
+  test('unpaid booking is not shown as booked; paid one is', async () => {
+    const r = await startBooking([person('Unpaid', '2018-02-02', [ids[0]], { healthNone: false, healthNotes: 'Asthma' })]);
+    let o = (await sessionsOverview()).find((s) => s.id === ids[0])!;
+    assert.equal(o.confirmed, 0);
+    assert.equal(o.health, 0);
+    await confirmCardOrder(r.redirect.split('/').pop()!, 'pi_x');
+    o = (await sessionsOverview()).find((s) => s.id === ids[0])!;
+    assert.equal(o.confirmed, 1);
+    assert.equal(o.health, 1);
+  });
+
+  test('cancel frees capacity and keeps the waiver, CSV includes health', async () => {
     await cash([person('Lee', '2018-02-02', [ids[0]], { healthNone: false, healthNotes: 'Asthma' })]);
-    let [r] = await roster(ids[0]);
-    assert.equal(r.paymentStatus, 'cash_due');
-    await setCashReceived(r.bookingId, true);
-    [r] = await roster(ids[0]);
-    assert.equal(r.paymentStatus, 'cash_received');
+    const [r] = await roster(ids[0]);
+    assert.equal(r.paymentStatus, 'paid_card');
     const csv = await rosterCsv(ids[0]);
     assert.match(csv, /Asthma/);
     await cancelBooking(r.bookingId);
@@ -224,7 +247,7 @@ describe('admin', () => {
   test('manual add respects capacity', async () => {
     for (let i = 0; i < 10; i++) await cash([person(`M${i}`, '2000-01-01', [ids[3]])]);
     await assert.rejects(
-      addConfirmedBooking({ sessionId: ids[3], fullName: 'Walk In', dateOfBirth: null, phone: null, email: null, emergencyName: null, emergencyPhone: null, healthNotes: null, bookerEmail: null, paymentStatus: 'cash_due', waiverStatus: 'missing', notes: null, source: 'admin' }),
+      addConfirmedBooking({ sessionId: ids[3], fullName: 'Walk In', dateOfBirth: null, phone: null, email: null, emergencyName: null, emergencyPhone: null, healthNotes: null, bookerEmail: null, paymentStatus: 'paid_card', waiverStatus: 'missing', notes: null, source: 'admin' }),
       SoldOutError,
     );
   });
@@ -232,11 +255,11 @@ describe('admin', () => {
 
 describe('CSV import', () => {
   const header = 'session_date,session_time,participant_full_name,date_of_birth,phone,email,emergency_contact_name,emergency_contact_phone,health_notes,waiver_status,payment_status,booker_email,guardian_name,guardian_relationship,notes';
-  const row = (name: string, time = '09:00', extra = 'signed,cash_due') =>
+  const row = (name: string, time = '09:00', extra = 'signed,paid_card') =>
     `2026-11-28,${time},${name},2019-01-01,0400000000,a@example.com,Em,0400000001,,${extra},b@example.com,Pat,Parent,`;
 
   test('imports, reports duplicates and invalid rows, never oversells', async () => {
-    const lines = [header, ...Array.from({ length: 11 }, (_, i) => row(`Imp ${i}`)), row('Imp 0'), row('Bad', '08:00'), row('Odd', '10:00', 'maybe,cash_due')];
+    const lines = [header, ...Array.from({ length: 11 }, (_, i) => row(`Imp ${i}`)), row('Imp 0'), row('Bad', '08:00'), row('Odd', '10:00', 'maybe,paid_card')];
     const report = await importCsv(lines.join('\n'));
     assert.equal(report.imported, 10);
     const outcomes = report.results.map((r) => r.outcome);

@@ -27,11 +27,6 @@ const year = new Date().getFullYear();
       </ul>
     </nav>
     <ul class="contact">
-      <li>
-        <a href={`mailto:${site.email.value}`} data-placeholder={site.email.placeholder ? 'true' : undefined}>
-          {site.email.value}
-        </a>
-      </li>
       {
         site.socials.map((s) => (
           <li>
