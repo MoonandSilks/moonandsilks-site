@@ -15,15 +15,16 @@ const { migrate } = await import('drizzle-orm/postgres-js/migrator');
 const { getDb, closeDb, schema } = await import('../src/lib/db/client');
 const { SEED_SESSIONS } = await import('../src/lib/sessions-seed');
 const { createWebBooking } = await import('../src/lib/checkout');
-const { confirmCardOrder, getSchedule, releaseExpiredHolds, releaseOrder, SoldOutError, newToken } = await import('../src/lib/booking');
+const { confirmCardOrder, getOrderSummary, getSchedule, releaseExpiredHolds, releaseOrder, SoldOutError, newToken } = await import('../src/lib/booking');
 const { getStripe } = await import('../src/lib/stripe');
 const { cardSurchargeCents } = await import('../src/lib/money');
 const { parseBooking } = await import('../src/lib/validate');
 const { importCsv } = await import('../src/lib/importer');
-const { addConfirmedBooking, cancelBooking, roster, rosterCsv, sessionsOverview } = await import('../src/lib/admin');
+const { addConfirmedBooking, cancelBooking, roster, rosterCsv, sessionsOverview, setSessionClosed } = await import('../src/lib/admin');
 const { waiverPdf } = await import('../src/lib/pdf');
 const { WAIVER_TEXT, WAIVER_VERSION } = await import('../src/lib/waiver-text');
 const { createHash } = await import('node:crypto');
+const { readFileSync } = await import('node:fs');
 
 const db = getDb();
 let ids: number[] = [];
@@ -279,5 +280,57 @@ describe('CSV import', () => {
   test('missing columns are reported', async () => {
     const report = await importCsv('session_date,participant_full_name\n2026-11-28,X');
     assert.equal(report.results[0].outcome, 'invalid');
+  });
+});
+
+describe('closed sessions', () => {
+  const walkIn = (sessionId: number) => addConfirmedBooking({ sessionId, fullName: 'Group Member', dateOfBirth: null, phone: null, email: null, emergencyName: null, emergencyPhone: null, healthNotes: null, bookerEmail: null, paymentStatus: 'paid_card', waiverStatus: 'missing', notes: null, source: 'admin' });
+  const reopenAll = () => db.update(schema.classSessions).set({ closed: false });
+  beforeEach(reopenAll);
+  after(reopenAll);
+
+  test('migration closes only Sat 12 Dec 11:00 and keeps its booking', async () => {
+    const existing = await cash([person('Already Booked', '2000-01-01', [ids[8]])]);
+    const before = await db.select().from(schema.bookings).where(eq(schema.bookings.sessionId, ids[8]));
+    // Re-apply the migration SQL against the seeded sessions, as a production deploy would.
+    const migration = readFileSync('drizzle/0002_session_closed.sql', 'utf8');
+    for (const stmt of migration.split('--> statement-breakpoint')) await db.execute(sql.raw(stmt));
+    const s = await getSchedule();
+    assert.deepEqual(s.filter((r) => r.closed).map((r) => r.slug), ['2026-12-12-1100']);
+    const day = s.filter((r) => r.slug.startsWith('2026-12-12'));
+    assert.deepEqual(day.map((r) => [r.slug, r.spotsLeft, r.taken]), [['2026-12-12-0900', 10, 0], ['2026-12-12-1000', 10, 0], ['2026-12-12-1100', 0, 1]]);
+    assert.deepEqual(await db.select().from(schema.bookings).where(eq(schema.bookings.sessionId, ids[8])), before);
+    assert.equal((await getOrderSummary(existing.token))?.status, 'confirmed');
+  });
+
+  test('closed session refuses web bookings; other sessions still book', async () => {
+    await setSessionClosed(ids[8], true);
+    await assert.rejects(startBooking([person('New Teen', '2000-01-01', [ids[8]])]), SoldOutError);
+    await assert.rejects(startBooking([person('Mixed Cart', '2000-01-01', [ids[5], ids[8]])]), SoldOutError);
+    const [{ n }] = await db.execute<{ n: number }>(sql`select count(*)::int n from bookings`);
+    assert.equal(n, 0);
+    for (const id of [ids[5], ids[6], ids[7]]) await cash([person(`Open ${id}`, '2000-01-01', [id])]);
+    const open = await db.execute<{ n: number }>(sql`select count(*)::int n from bookings where status = 'confirmed'`);
+    assert.equal(open[0].n, 3);
+  });
+
+  test('late payment for a session closed meanwhile is refunded, not booked', async () => {
+    const r = await startBooking([person('Slow Payer', '2000-01-01', [ids[8]])]);
+    await db.update(schema.bookings).set({ holdExpiresAt: new Date(Date.now() - 60_000) });
+    await releaseExpiredHolds();
+    await setSessionClosed(ids[8], true);
+    assert.equal((await confirmCardOrder(r.redirect.split('/').pop()!, 'pi_slow')).outcome, 'no_capacity');
+  });
+
+  test('admin can still add to a closed session; reopen allows web bookings again', async () => {
+    await cash([person('Kept', '2000-01-01', [ids[8]])]);
+    await setSessionClosed(ids[8], true);
+    await walkIn(ids[8]);
+    assert.equal((await roster(ids[8])).length, 2);
+    assert.equal((await sessionsOverview()).find((s) => s.id === ids[8])?.closed, true);
+    await setSessionClosed(ids[8], false);
+    assert.equal((await getSchedule()).find((s) => s.id === ids[8])?.spotsLeft, 8);
+    await cash([person('After Reopen', '2000-01-01', [ids[8]])]);
+    assert.equal((await roster(ids[8])).filter((b) => b.status === 'confirmed').length, 3);
   });
 });

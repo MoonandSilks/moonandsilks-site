@@ -37,7 +37,7 @@ export const POST: APIRoute = async ({ request, clientAddress, url }) => {
     return json({ ok: true, redirect: result.redirect });
   } catch (e) {
     if (e instanceof SoldOutError)
-      return json({ error: 'Sorry, one or more classes no longer have enough spots. The schedule has been refreshed.', soldOut: e.sessionIds }, 409);
+      return json({ error: 'Sorry, one or more classes are full or no longer available.', soldOut: e.sessionIds }, 409);
     if (e instanceof StaleWaiverError) return json({ error: e.message }, 409);
     console.error('Booking failed:', e instanceof Error ? e.message : 'unknown error');
     return json({ error: 'Something went wrong and nothing was booked. Please try again.' }, 500);

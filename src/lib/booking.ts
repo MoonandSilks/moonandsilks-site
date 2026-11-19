@@ -26,6 +26,7 @@ export type ScheduleRow = {
   ageMax: number | null;
   capacity: number;
   priceCents: number;
+  closed: boolean;
   taken: number;
   spotsLeft: number;
 };
@@ -42,23 +43,26 @@ export async function getSchedule(): Promise<ScheduleRow[]> {
       ageMax: classSessions.ageMax,
       capacity: classSessions.capacity,
       priceCents: classSessions.priceCents,
+      closed: classSessions.closed,
       taken: sql<number>`(select count(*)::int from bookings b where b.session_id = class_sessions.id and (b.status = 'confirmed' or (b.status = 'held' and b.hold_expires_at > now())))`,
     })
     .from(classSessions)
     .orderBy(classSessions.startsAt);
-  return rows.map((r) => ({ ...r, spotsLeft: Math.max(0, r.capacity - r.taken) }));
+  return rows.map((r) => ({ ...r, spotsLeft: r.closed ? 0 : Math.max(0, r.capacity - r.taken) }));
 }
 
 /**
  * Locks the session rows, then checks that live bookings + requested <= capacity.
+ * With `web`, sessions closed in /admin are refused too (admin adds and imports may still fill them).
  * Must run inside a transaction. Concurrent callers for the same session queue on the row lock,
  * and each re-counts after the previous one commits, so the last spot can only be taken once.
  */
-export async function lockAndCheckCapacity(tx: Tx, requested: Map<number, number>, excludeOrderId?: string) {
+export async function lockAndCheckCapacity(tx: Tx, requested: Map<number, number>, opts: { excludeOrderId?: string; web?: boolean } = {}) {
+  const { excludeOrderId, web = false } = opts;
   const ids = [...requested.keys()].sort((a, b) => a - b);
   if (!ids.length) return;
   const locked = await tx
-    .select({ id: classSessions.id, capacity: classSessions.capacity })
+    .select({ id: classSessions.id, capacity: classSessions.capacity, closed: classSessions.closed })
     .from(classSessions)
     .where(inArray(classSessions.id, ids))
     .orderBy(classSessions.id)
@@ -76,7 +80,7 @@ export async function lockAndCheckCapacity(tx: Tx, requested: Map<number, number
     )
     .groupBy(bookings.sessionId);
   const taken = new Map(counts.map((c) => [c.sessionId, c.n]));
-  const full = locked.filter((s) => (taken.get(s.id) ?? 0) + (requested.get(s.id) ?? 0) > s.capacity).map((s) => s.id);
+  const full = locked.filter((s) => (web && s.closed) || (taken.get(s.id) ?? 0) + (requested.get(s.id) ?? 0) > s.capacity).map((s) => s.id);
   if (full.length) throw new SoldOutError(full);
 }
 
@@ -139,7 +143,7 @@ export async function confirmCardOrder(stripeSessionId: string, paymentIntent: s
       const req = new Map<number, number>();
       for (const b of items) req.set(b.sessionId, (req.get(b.sessionId) ?? 0) + 1);
       try {
-        await lockAndCheckCapacity(tx, req, order.id);
+        await lockAndCheckCapacity(tx, req, { excludeOrderId: order.id, web: true });
       } catch (e) {
         if (e instanceof SoldOutError) {
           await tx.update(orders).set({ status: 'refund_needed', stripePaymentIntent: paymentIntent }).where(eq(orders.id, order.id));

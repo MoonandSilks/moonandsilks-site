@@ -24,6 +24,8 @@ export const classSessions = pgTable('class_sessions', {
   ageMax: integer('age_max'),
   capacity: integer('capacity').notNull().default(10),
   priceCents: integer('price_cents').notNull().default(2000),
+  /** Closed to new public bookings (set in /admin). Existing bookings stay. */
+  closed: boolean('closed').notNull().default(false),
 });
 
 /** Exact waiver wording, keyed by version, so every signature points at the words it agreed to. */
