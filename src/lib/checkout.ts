@@ -42,7 +42,7 @@ export async function createWebBooking(input: BookingInput, opts: { ip: string |
   const token = newToken();
 
   const orderId = await getDb().transaction(async (tx) => {
-    await lockAndCheckCapacity(tx, requested);
+    await lockAndCheckCapacity(tx, requested, { web: true });
     const [order] = await tx
       .insert(orders)
       .values({

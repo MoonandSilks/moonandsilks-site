@@ -10,6 +10,7 @@ type Session = {
   priceCents: number;
   spotsLeft: number;
   past: boolean;
+  closed: boolean;
 };
 type Config = {
   sessions: Session[];
@@ -147,7 +148,7 @@ export function initBooking() {
         const blocked = s.spotsLeft === 0 || (!box.checked && left <= 0);
         box.disabled = blocked;
         row.classList.toggle('is-disabled', blocked);
-        $('[data-left]', row)!.textContent = s.past ? '(finished)' : s.spotsLeft === 0 ? '(sold out)' : !box.checked && left <= 0 ? '(no spots left)' : `(${s.spotsLeft} left)`;
+        $('[data-left]', row)!.textContent = s.past ? '(finished)' : s.closed ? '(closed)' : s.spotsLeft === 0 ? '(sold out)' : !box.checked && left <= 0 ? '(no spots left)' : `(${s.spotsLeft} left)`;
       });
       // Age warnings: allowed, but flagged.
       const dob = val(p, `p${idx(p)}.dateOfBirth`);

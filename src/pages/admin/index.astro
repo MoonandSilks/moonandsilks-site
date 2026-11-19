@@ -33,6 +33,7 @@ const sessions = await sessionsOverview();
               <td>
                 {s.confirmed} / {s.capacity}
                 {s.confirmed >= s.capacity && <span class="badge warn">Full</span>}
+                {s.closed && <span class="badge warn">Closed</span>}
               </td>
               <td>{s.health > 0 && <span class="flag" role="img" aria-label="Health flag" title="Health flag">✱</span>}</td>
             </tr>

@@ -22,6 +22,12 @@ const outOfBand = (age: number | null) =>
     <strong>{confirmed} / {session.capacity}</strong> booked{held > 0 && `, ${held} held while paying`}.
     <a class="btn btn--ghost btn-small" href={`/admin/export.csv?session=${id}`} download>Export roster (CSV) — sensitive: includes health notes</a>
   </p>
+  <form method="post" action="/api/admin/session/closed">
+    <input type="hidden" name="session" value={id} />
+    <input type="hidden" name="closed" value={session.closed ? '0' : '1'} />
+    {session.closed && <span class="badge warn">Closed to new bookings</span>}
+    <button class="btn btn--ghost btn-small" type="submit">{session.closed ? 'Reopen to bookings' : 'Close to new bookings'}</button>
+  </form>
   {msg && <p class="flash" role="status">{msg}</p>}
   {err && <p class="flash err" role="alert">{err}</p>}
 

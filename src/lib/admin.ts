@@ -15,6 +15,7 @@ export async function sessionsOverview() {
       startsAt: classSessions.startsAt,
       ageGroup: classSessions.ageGroup,
       capacity: classSessions.capacity,
+      closed: classSessions.closed,
       confirmed: sql<number>`count(*) filter (where ${bookings.status} = 'confirmed')::int`,
       health: sql<number>`count(*) filter (where ${bookings.status} = 'confirmed' and ${participants.healthNotes} is not null)::int`,
     })
@@ -69,6 +70,11 @@ export async function roster(sessionId: number, includeInactive = false) {
     ...r,
     age: r.dateOfBirth ? ageOn(r.dateOfBirth, perthDate(r.startsAt)) : null,
   }));
+}
+
+/** Closes or reopens a session to new public bookings. Existing bookings are not touched. */
+export async function setSessionClosed(sessionId: number, closed: boolean) {
+  await getDb().update(classSessions).set({ closed }).where(eq(classSessions.id, sessionId));
 }
 
 /** Cancels a spot and frees capacity. The waiver record is kept. */

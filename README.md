@@ -3,7 +3,7 @@
 Astro site for www.moonandsilks.com. The marketing pages (Home, About, Contact) are static. `/book` and `/admin` run as Vercel serverless functions backed by Postgres and Stripe.
 
 - **`/book`:** schedule, then a cart (several participants and/or several Saturdays), then one waiver per participant, then card payment (Stripe). There is no cash option.
-- **`/admin`:** Natascha's private page. It has rosters, manual add and cancel, CSV export, waiver PDFs and CSV import.
+- **`/admin`:** Natascha's private page. It has rosters, manual add and cancel, close/reopen a session, CSV export, waiver PDFs and CSV import.
 
 ## Run locally
 
@@ -21,7 +21,7 @@ Other commands:
 | Command | What it does |
 |---|---|
 | `npm run build` | Production build |
-| `npm run db:migrate` | Applies SQL migrations in `drizzle/` |
+| `npm run db:migrate` | Applies SQL migrations in `drizzle/`. Production deploys on Vercel also do this automatically (`vercel-build`); previews skip it. |
 | `npm run db:seed` | Adds or updates the sessions and the waiver wording. Safe to run more than once. |
 | `npm run db:generate` | After changing `src/lib/db/schema.ts`, creates a new migration |
 | `npm run import:csv -- file.csv` | Imports existing bookings from the command line |
@@ -56,6 +56,7 @@ Put the `whsec_…` secret it prints into `STRIPE_WEBHOOK_SECRET`, then pay with
   - If the participant is under 18 on their first class date, the parent/guardian section is required.
   - If the wording ever changes, bump `WAIVER_VERSION` and run `npm run db:seed`. Old signatures keep pointing at the old wording.
 - **Health notes** appear only in `/admin`, the admin CSV and the waiver PDFs. They are never on the public confirmation page or in emails.
+- **Closed sessions:** a session closed in `/admin` (Close to new bookings) shows as Closed on `/book` and refuses new web bookings. Existing bookings stay, and admin adds and imports still work. The state is stored in the database; `npm run db:seed` never changes it. Migration `0002` closes Sat 12 Dec 2026, 11:00 Teens & adults (homeschool group).
 - **Age groups:** booking outside a session's age group shows a warning but is still allowed. The admin roster flags it.
 
 ## Importing existing bookings

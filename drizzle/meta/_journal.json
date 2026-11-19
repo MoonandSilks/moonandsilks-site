@@ -15,6 +15,13 @@
       "when": 1794807101307,
       "tag": "0001_stripe_events",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795072288829,
+      "tag": "0002_session_closed",
+      "breakpoints": true
     }
   ]
 }
